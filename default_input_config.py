@@ -1,8 +1,7 @@
 ######################
 # Connection Details #
 ######################
-config_file_format = \
-"""
+
 # Port
 # e.g. COMxx        (windows)
 #      /dev/ttySxx  (linux)
@@ -23,6 +22,13 @@ parity = PARITY_NONE
 # Available: STOPBITS_ONE, STOPBITS_ONE_POINT_FIVE, STOPBITS_TWO
 stopbits=serial.STOPBITS_ONE
 
+################
+# Color Scheme #
+################
+
+frozen              ['fg_light_blue'],
+information         ['fg_yellow', 'bold'],
+Command             ['fg_cyan', 'bold', 'underline'])
 
 ##################
 # Highlight text #
@@ -54,9 +60,3 @@ stopbits=serial.STOPBITS_ONE
 
 # word       Format line       Format text
 sensor       [fg_light_red]    [fg_orange, bold]
-"""        
-        
-        
-               
-        
-        
