@@ -233,7 +233,7 @@ class Logger:
         if not hit:
             formatted_line = color(line, fmt_line)
         else:
-            words = line.lower().split(' ')    
+            words = line.lower().split(' ')
 
             formatted_line = ''
             for word in words:
@@ -328,10 +328,10 @@ class Settings:
                             'command' : [None, color_scheme_default.command]}
         self.highlights =  ({}, dct_default_highlight)
 
-    def get(self, str_setting):
+    def get(self, str_setting, default_value=False):
         try:
             (setting, default) = self.dct_config[str_setting]
-            if setting:
+            if setting and not default_value:
                 return setting
             else:
                 return default
@@ -339,8 +339,12 @@ class Settings:
             return None
 
     def set(self, str_setting, value):
+        #print(str_setting, value)
         try:
-            self.dct_config[str_setting][0] = value
+            if str_setting in ['frozen', 'information', 'command']:
+                self.dct_config[str_setting][0] = str_to_list(value)
+            else:
+                self.dct_config[str_setting][0] = value
         except KeyError:
             return None
 
@@ -366,9 +370,9 @@ class Settings:
         com.parity = dct_serial[self.get('parity')]
         com.stopbits = dct_serial[self.get('stopbits')]
 
-        color_scheme.frozen = str_to_list(self.get('frozen'))
-        color_scheme.information = str_to_list(self.get('information'))
-        color_scheme.command = str_to_list(self.get('command'))
+        color_scheme.frozen = self.get('frozen')
+        color_scheme.information = self.get('information')
+        color_scheme.command = self.get('command')
 
         dct_highlights = self.get_highlights()
         #for keyword, (str_fmt_line, str_fmt_word) in self.get_highlights().items():
@@ -425,8 +429,11 @@ def save_config_file(path_cfg):
     port = settings.get('port')
     baudrate = settings.get('baudrate')
     bytesize = settings.get('bytesize')
+    bytesize_def = settings.get('bytesize', True)
     parity = settings.get('parity')
+    parity_def = settings.get('parity', True)
     stopbits = settings.get('stopbits')
+    stopbits_def = settings.get('stopbits', True)
     frozen = settings.get('frozen')
     information = settings.get('information')
     command = settings.get('command')
@@ -452,15 +459,18 @@ baudrate = {}
 
 # Byte size 
 # Available: FIVEBITS, SIXBITS, SEVENBITS, EIGHTBITS
-bytesize = {}
+# default = {}
+# bytesize = {}
 
 # Parity 
 # Available: PARITY_NONE, PARITY_EVEN, PARITY_ODD, PARITY_MARK, PARITY_SPACE
-parity = {}
+# default = {}
+# parity = {}
 
 # Stop bits
 # Available: STOPBITS_ONE, STOPBITS_ONE_POINT_FIVE, STOPBITS_TWO
-stopbits = {}
+# default = {}
+# stopbits = {}
 
 ################
 # Color Scheme #
@@ -497,7 +507,7 @@ command             {}
 # Note. One of the formats can be empty
 
 {}
-""".format(port, baudrate, bytesize, parity, stopbits, frozen, information, command, str_highlights)
+""".format(port, baudrate, bytesize_def, bytesize, parity_def, parity, stopbits_def, stopbits, frozen, information, command, str_highlights)
 
     with open(path_cfg, 'w') as f:
         print(str_config, file=f)
@@ -535,9 +545,9 @@ if __name__ == '__main__':
             file_path = sys.argv[2]
             if os.path.isfile(sys.argv[2]):
                 open_config_file(sys.argv[2])
-                print('--- LOAD SETTINGS ---')
-                print(settings)
                 settings.apply()
+                print(color('--- LOAD SETTINGS ---', color_scheme.information))
+                print(color(str(settings), color_scheme.information))
             else:
                 print('Invalid or missing config file path.')
         else:
