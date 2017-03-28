@@ -12,7 +12,7 @@ from threading import Thread
 from time import sleep
 from enum import Enum
 
-from log_color import highlight_text, color
+from log_color import highlight_text, color, styles
 
 if platform.system()== 'Linux':
     from getch import getch
@@ -398,6 +398,58 @@ Highlights
         return str_settings
 
 
+
+class Setting:
+    def __init__(self, name, desc, default_value, avail_values, command_line, fmt_color, source):
+        self.name = name
+        self.desc = desc
+        self.default_value = default_value
+        self.avail_values = avail_values
+        self.command_line = command_line
+        self.fmt_color = fmt_color
+        self.source = source
+
+        self.value = None
+
+    def str_arg(self):
+
+        str_arg = "{:<20}".format(self.name)
+        if self.desc:
+            str_arg += self.desc
+        if self.avail_values:
+            str_arg += "Available values: {}\n".format(', '.join(self.avail_values))
+
+        if self.default_value:
+            str_arg += "{:20}Default value: {}".format('', self.default_value)
+        return str_arg + '\n'
+
+    def get_arg(self):
+        if self.value:
+            return self.value
+        elif self.default_value:
+            return self.default_value
+        elif self.desc:
+            return self.desc
+        else:
+            return ''
+
+class SettingX(list):
+    def __init__(self):
+        list.__init__(self)
+
+    def print_arg(self):
+        for setting in self:
+            if setting.command_line:
+                print(setting.str_arg())
+
+    def get_arg(self, name):
+        for setting in self:
+            #print(setting.name, name)
+            if setting.name == name:
+                return setting.get_arg()
+
+settingsx = SettingX()
+
 settings = Settings()
 def open_config_file(path_cfg):
 
@@ -423,17 +475,13 @@ def open_config_file(path_cfg):
                     fields = line.split()
                     settings.set(fields[0], "".join(fields[1:]))
 
-
 def save_config_file(path_cfg):
 
     port = settings.get('port')
     baudrate = settings.get('baudrate')
     bytesize = settings.get('bytesize')
-    bytesize_def = settings.get('bytesize', True)
     parity = settings.get('parity')
-    parity_def = settings.get('parity', True)
     stopbits = settings.get('stopbits')
-    stopbits_def = settings.get('stopbits', True)
     frozen = settings.get('frozen')
     information = settings.get('information')
     command = settings.get('command')
@@ -446,43 +494,11 @@ def save_config_file(path_cfg):
 
     str_config = \
 """
-######################
-# Connection Details #
-######################
-# Port
-# e.g. COMxx        (windows)
-#      /dev/ttySxx  (linux)
-port = {}
+###################################################
+# COMpletelyLOGical - COM port LOGger config file #
+###################################################
 
-# Baudrate
-baudrate = {}
-
-# Byte size 
-# Available: FIVEBITS, SIXBITS, SEVENBITS, EIGHTBITS
-# default = {}
-# bytesize = {}
-
-# Parity 
-# Available: PARITY_NONE, PARITY_EVEN, PARITY_ODD, PARITY_MARK, PARITY_SPACE
-# default = {}
-# parity = {}
-
-# Stop bits
-# Available: STOPBITS_ONE, STOPBITS_ONE_POINT_FIVE, STOPBITS_TWO
-# default = {}
-# stopbits = {}
-
-################
-# Color Scheme #
-################
-frozen              {}
-information         {}
-command             {}
-
-##################
-# Highlight text #
-##################
-# Available highlight formats       
+# Available text formats
 #
 #  text colors             background colors       styles
 #  'fg_black'              'bg_black'              'bold'
@@ -501,13 +517,52 @@ command             {}
 #  'fg_pink'
 #  'fg_light_cyan'
 
+######################
+# Connection Details #
+######################
+# Port
+port = {}
 
+# Baudrate
+baudrate = {}
+
+# Byte size 
+# Available: FIVEBITS, SIXBITS, SEVENBITS, EIGHTBITS
+bytesize = {}
+
+# Parity 
+# Available: PARITY_NONE, PARITY_EVEN, PARITY_ODD, PARITY_MARK, PARITY_SPACE
+parity = {}
+
+# Stop bits
+# Available: STOPBITS_ONE, STOPBITS_ONE_POINT_FIVE, STOPBITS_TWO
+stopbits = {}
+
+################
+# Color Scheme #
+################
+frozen              {}
+information         {}
+command             {}
+
+##################
+# Highlight text #
+##################
 # the below example will highlight all words containing 'sensor' with
 # bold orange text, the rest of line will be highlighted with light red text
 # Note. One of the formats can be empty
 
 {}
-""".format(port, baudrate, bytesize_def, bytesize, parity_def, parity, stopbits_def, stopbits, frozen, information, command, str_highlights)
+""".format(
+    settingsx.get_arg('port'),
+    settingsx.get_arg('baudrate'),
+    settingsx.get_arg('bytesize'),
+    settingsx.get_arg('parity'),
+    settingsx.get_arg('stopbits'),
+    settingsx.get_arg('frozen'),
+    settingsx.get_arg('information'),
+    settingsx.get_arg('command'),
+    settingsx.get_arg('str_highlights'))
 
     with open(path_cfg, 'w') as f:
         print(str_config, file=f)
@@ -524,11 +579,23 @@ lst_user_commands.append(UserCommands(b'\x11', 'Ctrl-Q', 'Quit', callback=quit_l
 
 dct_user_commands = d = {ucmd.keycmd: ucmd for ucmd in lst_user_commands}
 
+settingsx.append(Setting(name='port', desc="e.g. COMx  (windows) or /dev/ttySxx  (linux)", default_value=None, avail_values=None, command_line=True, fmt_color=False, source=com.name))
+settingsx.append(Setting(name='baudrate', desc="e.g. 115200, 921600, etc.", default_value=None, avail_values=None, command_line=True, fmt_color=False, source=com.baudrate))
+settingsx.append(Setting(name='bytesize', desc=None, default_value='EIGHTBITS', avail_values=['FIVEBITS', 'SIXBITS', 'SEVENBITS', 'EIGHTBITS'], command_line=True, fmt_color=False, source=com.bytesize))
+settingsx.append(Setting(name='parity', desc=None, default_value='PARITY_NONE', avail_values=['PARITY_NONE', 'PARITY_EVEN', 'PARITY_ODD', 'PARITY_MARK', 'PARITY_SPACE'], command_line=True, fmt_color=False, source=com.parity))
+settingsx.append(Setting(name='stopbits', desc=None, default_value='STOPBITS_ONE', avail_values=['STOPBITS_ONE', 'STOPBITS_ONE_POINT_FIVE', 'STOPBITS_TWO'], command_line=True, fmt_color=False, source=com.stopbits))
+
+settingsx.append(Setting(name='frozen', desc=None, default_value=color_scheme_default.frozen, avail_values=styles.keys(), command_line=False, fmt_color=True, source=color_scheme.frozen))
+settingsx.append(Setting(name='information', desc=None, default_value=color_scheme_default.information, avail_values=styles.keys(), command_line=False, fmt_color=True, source=color_scheme.information))
+settingsx.append(Setting(name='command', desc=None, default_value=color_scheme_default.command, avail_values=styles.keys(), command_line=False, fmt_color=True, source=color_scheme.command))
+
 
 if __name__ == '__main__':
     arg = sys.argv[1]
     if '-h' in arg or '--help' in arg:
         print('HELP!')
+        print('Command line arguments, not yet implemented :(')
+        print(settingsx.print_arg())
         sys.exit()
     elif '-create' in arg:
         if len(sys.argv) == 3:
