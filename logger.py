@@ -208,7 +208,7 @@ class Logger:
                     formatted_line += color(word + ' ', fmt_line)
                 else:
                     formatted_line += word + color(' ', formatted_line)
-        
+
         print(formatted_line.rstrip(), end=newline)
 
 logger = Logger(lc.dct_default_highlight)
@@ -262,7 +262,7 @@ def close_com():
 
 def start_logger():
     print('start_logger', end=newline)
-\
+
 
 class Settings:
     def __init__(self):

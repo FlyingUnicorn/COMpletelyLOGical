@@ -19,8 +19,37 @@ from enum import Enum
 from log_color import highlight_text, color, styles, ColorScheme
 
 if platform.system()== 'Linux':
-    from getch import getch
-    newline = '\r\n'
+    print("LINUX")  
+    import sys    
+    import termios
+    import fcntl
+
+    def getch():
+        fd = sys.stdin.fileno()
+
+        oldterm = termios.tcgetattr(fd)
+        newattr = termios.tcgetattr(fd)
+        newattr[3] = newattr[3] & ~termios.ICANON & ~termios.ECHO
+        termios.tcsetattr(fd, termios.TCSANOW, newattr)
+
+        oldflags = fcntl.fcntl(fd, fcntl.F_GETFL)
+        fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
+
+        try:        
+            while 1:            
+                try:
+                    c = sys.stdin.read(1)
+                    if c:
+                        break
+                except IOError: pass
+        finally:
+            termios.tcsetattr(fd, termios.TCSAFLUSH, oldterm)
+            fcntl.fcntl(fd, fcntl.F_SETFL, oldflags)
+     
+        return c
+
+    #from getch import getch
+    newline = '\n'
     getcmd = lambda cmd : bytes(cmd, 'utf-8')
 elif platform.system() == 'Windows':
     from msvcrt import getch
@@ -33,12 +62,13 @@ dct_user_commands = {}
 dct_highlights = {}
 
 class Logger(Thread):
-    def __init__(self, dct_keywords, com, ui):
+    def __init__(self, dct_keywords, com, ui, newline):
         Thread.__init__(self)
 
         self.dct_keywords = dct_keywords
         self.com = com
         self.ui = ui
+        self.newline = newline
 
         self.freeze = False
         self.lst_freeze = []
@@ -105,7 +135,7 @@ class Logger(Thread):
                     break
         else:
             formatted_line = line
-
+        
         print(formatted_line)
 
 dct_serial_to_const = {
@@ -296,9 +326,9 @@ def command_reader():
         cmd = getch()
         
         # uncomment to get keyboard command for new commands
-        #cmd = getcmd(cmd)
-        #print('cmd:', cmd, end=newline)
-
+        cmd = getcmd(cmd)
+        if cmd:
+            pass#print('cmd:', cmd, end=newline)
         try:
             exit = dct_user_commands[cmd].callback()
             if exit == True:
@@ -308,7 +338,7 @@ def command_reader():
         #print(color('Exiting...', color_scheme.command), end=newline)
 
 if __name__ == '__main__':
-
+    global newline
     parser = ArgumentParser(description=" ### COMpletelyLOGical - COM port LOGger ###")
     parser.add_argument("-create", dest="create", required=False, help="Create new config file", metavar="FILE")
     parser.add_argument("-load", dest="load", required=False, help="Load an existing config file", metavar="FILE")
@@ -331,7 +361,7 @@ if __name__ == '__main__':
 
     elif args.load:
         com = ch.ComPort(ui)
-        logger = Logger(dct_keywords, com, ui)
+        logger = Logger(dct_keywords, com, ui, newline)
         config = Config(com, dct_keywords, lc.color_scheme_default)
         print(args.load)
         loaded = config.load(path_cfg=args.load)
@@ -339,7 +369,7 @@ if __name__ == '__main__':
         if not loaded:
             sys.exit()
 
-    lst_user_commands.append(li.UserCommands(b'\x03', 'Ctrl-C', 'Clear log', callback=lambda:(os.system('cls'), ui.print_cmd('Log Cleared'))))
+    lst_user_commands.append(li.UserCommands(b'\x12', 'Ctrl-R', 'Reset log', callback=lambda:(os.system('cls' if os.name == 'nt' else 'clear'), ui.print_cmd('Log Cleared'))))
     lst_user_commands.append(li.UserCommands(b'\x07', 'Ctrl-G', 'Create a mark in the log', callback=ui.print_marker))
     lst_user_commands.append(li.UserCommands(b'\x06', 'Ctrl-F', 'Freeze the log input', callback=logger.freeze_log))
     #lst_user_commands.append(li.UserCommands(b'\x04', 'Ctrl-D', 'Connection details', callback=lambda:print(color(com.get_info(), color_scheme.information))))
@@ -348,7 +378,7 @@ if __name__ == '__main__':
     lst_user_commands.append(li.UserCommands(b'\x0f', 'Ctrl-O', 'Open Port', callback=com.open))
     lst_user_commands.append(li.UserCommands(b'\x08', 'Ctrl-H', 'Help', callback=lambda:ui.print_help()))
     lst_user_commands.append(li.UserCommands(b'\x02', 'Ctrl-B', 'Banana?', callback=lambda:ui.banana()))
-    lst_user_commands.append(li.UserCommands(b'\x11', 'Ctrl-Q', 'Quit', callback=lambda:True))
+    lst_user_commands.append(li.UserCommands(b'\x05', 'Ctrl-E', 'Exit', callback=lambda:True))
     dct_user_commands = d = {ucmd.keycmd: ucmd for ucmd in lst_user_commands}
 
     thread = Thread(target = command_reader)
