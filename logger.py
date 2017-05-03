@@ -5,6 +5,8 @@ import time
 import serial
 import platform
 import struct
+import log_color as lc
+import log_interface as li
 
 from enum import Enum
 from inspect import currentframe, getframeinfo
@@ -12,7 +14,7 @@ from threading import Thread
 from time import sleep
 from enum import Enum
 
-from log_color import highlight_text, color, styles
+from log_color import highlight_text, color, styles, ColorScheme
 
 if platform.system()== 'Linux':
     from getch import getch
@@ -28,32 +30,6 @@ running = True
 lst_user_commands = []
 dct_user_commands = {}
 dct_highlights = {}
-dct_default_highlight = {   'begin' : (['fg_light_red'], ['fg_orange', 'bold']),
-                    'arm' : ([], ['fg_green', 'bold']),
-                    'mcu' : (['fg_purple'], ['fg_red'])}
-
-
-def get_formatted_menu(str):
-    menu_len = 50
-
-    markers = menu_len - len(str) - 2
-
-    if markers < 0:
-        print('Cannot format menu for {}'.format(str))
-        sys.exit()
-
-    if markers % 2 == 0:
-        markers_begin = int(markers / 2)
-        markers_end = int(markers / 2)
-    else:
-        markers_begin = int(markers / 2)
-        markers_end = int(markers / 2) + 1
-
-    menu_top = '-' * markers_begin + ' ' + str + ' ' + '-' * markers_end
-    menu_buttom = '-' * menu_len
-
-    return menu_top, menu_buttom
-
 
 dct_serial = {
 'FIVEBITS' : serial.FIVEBITS,
@@ -72,20 +48,20 @@ dct_serial = {
 'STOPBITS_TWO' : serial.STOPBITS_TWO}
 
 class ComPort(serial.Serial):
-    def __init__(self):
+    def __init__(self, port=None, baudrate=0):
         serial.Serial.__init__(self)
 
-        self.port = None
-        self.baudrate = 0
+        self.port = port
+        self.baudrate = baudrate
         self.bytesize = serial.EIGHTBITS
         self.parity = serial.PARITY_NONE
         self.stopbits = serial.STOPBITS_ONE
         
-        self.timeout = 0.1          
-        self.xonxoff = False        
-        self.rtscts = False         
-        self.dsrdtr = False         
-        self.writeTimeout = 2 
+        self.timeout = 0.1
+        self.xonxoff = False
+        self.rtscts = False
+        self.dsrdtr = False
+        self.writeTimeout = 2
 
     def open(self):
         try: 
@@ -105,7 +81,7 @@ class ComPort(serial.Serial):
 
 
     def get_info(self):
-        menu_top, menu_buttom = get_formatted_menu('Connection Info')
+        menu_top, menu_buttom = li.formatted_menu('Connection Info')
         return \
 """
 {}
@@ -119,27 +95,12 @@ Stopbits:   {}
 
 com = ComPort()
 
-class ColorScheme:
-    def __init__(self, frozen, information, command):
-        self.frozen = frozen
-        self.information = information
-        self.command = command
-
-
-
 color_scheme_default = ColorScheme( frozen=['fg_light_blue'],
                                     information=['fg_yellow', 'bold'],
                                     command=['fg_cyan', 'bold', 'underline'])
 
 color_scheme = color_scheme_default
 
-
-def print_help(lst_cmd=lst_user_commands):
-    menu_top, menu_buttom = get_formatted_menu('Help')
-    print(color(menu_top, color_scheme.information), end=newline)
-    for ucmd in lst_cmd:
-        print(color(str(ucmd), color_scheme.information), end=newline)
-    print(color(menu_buttom, color_scheme.information), end=newline)
 
 def quit_logger():
     global running
@@ -208,7 +169,7 @@ class Logger:
         self.freeze = not self.freeze
 
     def list_highlight(self):
-        menu_top, menu_buttom = get_formatted_menu('Highlights')
+        menu_top, menu_buttom = li.formatted_menu('Highlights')
         print(color(menu_top, color_scheme.information), end=newline)
         for hl, (fmt_line, fmt_word) in self.dct_default_highlight.items():
             print(color('Keyword: ', color_scheme.information) + color('{}'.format(hl), fmt_word), end=newline)
@@ -218,7 +179,6 @@ class Logger:
 
     def printer(self, line, override_fmt_line=None):
         
-
         hit = False
         fmt_line = []
         
@@ -244,7 +204,6 @@ class Logger:
                         word = color(word, fmt_word)
                         break
 
-
                 if not formatted_word:
                     formatted_line += color(word + ' ', fmt_line)
                 else:
@@ -252,13 +211,7 @@ class Logger:
         
         print(formatted_line.rstrip(), end=newline)
 
-logger = Logger(dct_default_highlight)
-
-
-def banana():
-    print(color('BANANA!!', ['fg_yellow']), end=newline)
-    print(color(" _ \n//\\ \nV  \\ \n \\  \\_ \n  \\,'.`-. \n   |\\ `. `. \n   ( \\  `. `-.                        _,.-/\\ \n    \\ \\   `.  `-._             __..--' ,-'\\/ \n     \\ `.   `-.   `-..___..---'   _.--' ,'/ \n      `. `.    `-._        __..--'    ,' / \n        `. `-_     ``--..''       _.-' ,' \n          `-_ `-.___        __,--'   ,' \n             `-.__  `----\"\"\"    __.-' \nhh                `--..____..--'\n", ['fg_yellow', 'bold']), end=newline)
-
+logger = Logger(lc.dct_default_highlight)
 
 def command_reader(arg):
     global running
@@ -266,7 +219,7 @@ def command_reader(arg):
         cmd = getch()
         
         # uncomment to get keyboard command for new commands
-        cmd = getcmd(cmd)
+        #cmd = getcmd(cmd)
         #print('cmd:', cmd, end=newline)
         # 
         try:
@@ -280,7 +233,7 @@ def open_com():
     global com
     print('open_com', end=newline)
 
-    #com = ComPort('\\.\COM4', 921600)
+    com = ComPort('\\.\COM4', 921600)
     com.open()
     
     while(running):
@@ -288,7 +241,8 @@ def open_com():
             response = com.read(10000).decode('utf-8').rstrip()
         except Exception as e:
             print("{}:{} > error communicating...: {}".format(getframeinfo(currentframe()).filename, getframeinfo(currentframe()).lineno, str(e)), end=newline)
-            sys.exit()
+            print("com close")
+            com.close()
 
         if response:
             lines = response.split('\r\n')
@@ -308,13 +262,7 @@ def close_com():
 
 def start_logger():
     print('start_logger', end=newline)
-
-def str_to_list(str):
-    fmt = str.replace('[', '').replace("'", '').replace(']', '').split(',')
-    if fmt:
-        return fmt
-    else:
-        return []
+\
 
 class Settings:
     def __init__(self):
@@ -326,7 +274,7 @@ class Settings:
                             'frozen' : [None, color_scheme_default.frozen],
                             'information' : [None, color_scheme_default.information],
                             'command' : [None, color_scheme_default.command]}
-        self.highlights =  ({}, dct_default_highlight)
+        self.highlights =  ({}, lc.dct_default_highlight)
 
     def get(self, str_setting, default_value=False):
         try:
@@ -396,7 +344,6 @@ Color Scheme
 Highlights
     {}""".format(self.get('port'), self.get('baudrate'), self.get('bytesize'), self.get('parity'), self.get('stopbits'), self.get('frozen'), self.get('information'), self.get('command'), str_highlights)
         return str_settings
-
 
 
 class Setting:
@@ -498,25 +445,6 @@ def save_config_file(path_cfg):
 # COMpletelyLOGical - COM port LOGger config file #
 ###################################################
 
-# Available text formats
-#
-#  text colors             background colors       styles
-#  'fg_black'              'bg_black'              'bold'
-#  'fg_red'                'bg_red'                'underline'
-#  'fg_green'              'bg_green'              'reverse'
-#  'fg_orange'             'bg_orange'             'strike_through'
-#  'fg_blue'               'bg_blue'               'invisible'
-#  'fg_purple'             'bg_purple'
-#  'fg_cyan'               'bg_cyan'
-#  'fg_light_grey'         'bg_light_grey'
-#  'fg_dark_grey'
-#  'fg_light_red'
-#  'fg_light_green'
-#  'fg_yellow'
-#  'fg_light_blue'
-#  'fg_pink'
-#  'fg_light_cyan'
-
 ######################
 # Connection Details #
 ######################
@@ -541,9 +469,30 @@ stopbits = {}
 ################
 # Color Scheme #
 ################
+
+# Available text formats
+#
+#  text colors             background colors       styles
+#  'fg_black'              'bg_black'              'bold'
+#  'fg_red'                'bg_red'                'underline'
+#  'fg_green'              'bg_green'              'reverse'
+#  'fg_orange'             'bg_orange'             'strike_through'
+#  'fg_blue'               'bg_blue'               'invisible'
+#  'fg_purple'             'bg_purple'
+#  'fg_cyan'               'bg_cyan'
+#  'fg_light_grey'         'bg_light_grey'
+#  'fg_dark_grey'
+#  'fg_light_red'
+#  'fg_light_green'
+#  'fg_yellow'
+#  'fg_light_blue'
+#  'fg_pink'
+#  'fg_light_cyan'
+
 frozen              {}
 information         {}
 command             {}
+alert               {}
 
 ##################
 # Highlight text #
@@ -573,8 +522,9 @@ lst_user_commands.append(UserCommands(b'\x06', 'Ctrl-F', 'Freeze the log input',
 lst_user_commands.append(UserCommands(b'\x04', 'Ctrl-D', 'Connection details', callback=lambda:print(color(com.get_info(), color_scheme.information))))
 lst_user_commands.append(UserCommands(b'\x01', 'Ctrl-A', 'Add highlight', callback=logger.add_highlight))
 lst_user_commands.append(UserCommands(b'\x0c', 'Ctrl-L', 'List highlight', callback=logger.list_highlight))
-lst_user_commands.append(UserCommands(b'\x08', 'Ctrl-H', 'Help', callback=print_help))
-lst_user_commands.append(UserCommands(b'\x02', 'Ctrl-B', 'Banana?', callback=banana))
+lst_user_commands.append(UserCommands(b'\x0f', 'Ctrl-O', 'Open Port', callback=open_com))
+lst_user_commands.append(UserCommands(b'\x08', 'Ctrl-H', 'Help', callback=lambda:li.print_help(lst_user_commands, color_scheme, newline)))
+lst_user_commands.append(UserCommands(b'\x02', 'Ctrl-B', 'Banana?', callback=lambda:li.banana(newline)))
 lst_user_commands.append(UserCommands(b'\x11', 'Ctrl-Q', 'Quit', callback=quit_logger))
 
 dct_user_commands = d = {ucmd.keycmd: ucmd for ucmd in lst_user_commands}
@@ -591,45 +541,47 @@ settingsx.append(Setting(name='command', desc=None, default_value=color_scheme_d
 
 
 if __name__ == '__main__':
-    arg = sys.argv[1]
-    if '-h' in arg or '--help' in arg:
-        print('HELP!')
-        print('Command line arguments, not yet implemented :(')
-        print(settingsx.print_arg())
-        sys.exit()
-    elif '-create' in arg:
-        if len(sys.argv) == 3:
-            file_path = sys.argv[2]
-            save_config_file(sys.argv[2])
-            print('--- CREATE DEFAULT SETTINGS ---')
-            print(settings)
-        else:
-            print('Invalid or missing config file path.')
+    
+    if 0:
+        arg = sys.argv[1]
+        if '-h' in arg or '--help' in arg:
+            print('HELP!')
+            print('Command line arguments, not yet implemented :(')
+            print(settingsx.print_arg())
             sys.exit()
-
-    elif '-load' in arg:
-        if len(sys.argv) == 3:
-            file_path = sys.argv[2]
-            if os.path.isfile(sys.argv[2]):
-                open_config_file(sys.argv[2])
-                settings.apply()
-                print(color('--- LOAD SETTINGS ---', color_scheme.information))
-                print(color(str(settings), color_scheme.information))
+        elif '-create' in arg:
+            if len(sys.argv) == 3:
+                file_path = sys.argv[2]
+                save_config_file(sys.argv[2])
+                print('--- CREATE DEFAULT SETTINGS ---')
+                print(settings)
             else:
                 print('Invalid or missing config file path.')
-        else:
-            print('Invalid or missing config file path.')
-            sys.exit()
+                sys.exit()
 
+        elif '-load' in arg:
+            if len(sys.argv) == 3:
+                file_path = sys.argv[2]
+                if os.path.isfile(sys.argv[2]):
+                    open_config_file(sys.argv[2])
+                    settings.apply()
+                    print(color('--- LOAD SETTINGS ---', color_scheme.information))
+                    print(color(str(settings), color_scheme.information))
+                else:
+                    print('Invalid or missing config file path.')
+            else:
+                print('Invalid or missing config file path.')
+                sys.exit()
 
-    thread = Thread(target = command_reader, args = (10, ))
-    thread.start()
-    
-    print("thread finished...exiting", end=newline)
+    if 1:
+        thread = Thread(target = command_reader, args = (10, ))
+        thread.start()
+        
+        print("thread finished...exiting", end=newline)
 
-    start_logger()
-    open_com()
-    thread.join()
+        start_logger()
+        open_com()
+        thread.join()
 
 
 
