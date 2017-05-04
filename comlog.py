@@ -15,7 +15,7 @@ from inspect import currentframe, getframeinfo
 from threading import Thread
 from time import sleep
 from enum import Enum
-
+from datetime import datetime
 from log_color import highlight_text, color, styles, ColorScheme
 
 if platform.system()== 'Linux':
@@ -136,6 +136,7 @@ class Logger(Thread):
         else:
             formatted_line = line
         
+        print('[' + datetime.now().strftime('%H:%M:%S.%f')[:-3] + ']', end=' ')
         print(formatted_line)
 
 dct_serial_to_const = {
