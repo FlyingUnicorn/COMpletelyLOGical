@@ -73,7 +73,7 @@ class ComPort(serial.Serial):
             except Exception as e:
                 self.ui.print_alert("{}:{} > error communicating...: {}".format(getframeinfo(currentframe()).filename.split('/')[-1].split('\\')[-1], getframeinfo(currentframe()).lineno, str(e)))
                 #self.running = False
-                self.close()
+                #self.close()
 
             if response:
 

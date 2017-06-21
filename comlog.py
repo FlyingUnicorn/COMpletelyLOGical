@@ -8,6 +8,7 @@ import struct
 import log_color as lc
 import log_interface as li
 import com_handler as ch
+import misc as misc
 
 from argparse import ArgumentParser
 from enum import Enum
@@ -62,13 +63,14 @@ dct_user_commands = {}
 dct_highlights = {}
 
 class Logger(Thread):
-    def __init__(self, dct_keywords, com, ui, newline):
+    def __init__(self, dct_keywords, com, ui, newline, kpi):
         Thread.__init__(self)
 
         self.dct_keywords = dct_keywords
         self.com = com
         self.ui = ui
         self.newline = newline
+        self.kpi = kpi
 
         self.freeze = False
         self.lst_freeze = []
@@ -136,6 +138,8 @@ class Logger(Thread):
         else:
             formatted_line = line
         
+        self.kpi.handle_kpi(formatted_line)
+
         print('[' + datetime.now().strftime('%H:%M:%S.%f')[:-3] + ']', end=' ')
         print(formatted_line)
 
@@ -353,6 +357,8 @@ if __name__ == '__main__':
     dct_keywords = {}
     ui = li.UserInterface(color_scheme=lc.color_scheme_default, lst_cmd=lst_user_commands, dct_hl=dct_keywords, newline=newline)
 
+    kpi = misc.Kpi(ui)
+
     if args.create:
         com = ch.ComPort(ui, '\\.\COM4', 921600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE)
         config = Config(com, lc.dct_default_keywords, lc.color_scheme_default)
@@ -362,7 +368,7 @@ if __name__ == '__main__':
 
     elif args.load:
         com = ch.ComPort(ui)
-        logger = Logger(dct_keywords, com, ui, newline)
+        logger = Logger(dct_keywords, com, ui, newline, kpi)
         config = Config(com, dct_keywords, lc.color_scheme_default)
         print(args.load)
         loaded = config.load(path_cfg=args.load)
