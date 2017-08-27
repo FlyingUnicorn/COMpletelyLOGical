@@ -37,6 +37,9 @@ class ComPort(serial.Serial):
         self.writeTimeout = 2
 
         self.running = True
+        self.crap_status = 0
+
+        self.final_ending = None
 
     def open(self):
         self.running = True
@@ -71,27 +74,28 @@ class ComPort(serial.Serial):
                 if self.isOpen():
                     response = self.read(10000).decode('utf-8').rstrip()
             except Exception as e:
-                self.ui.print_alert("{}:{} > error communicating...: {}".format(getframeinfo(currentframe()).filename.split('/')[-1].split('\\')[-1], getframeinfo(currentframe()).lineno, str(e)))
+                lst_crap_progress = ['|', '/', '-', '\\']
+                self.crap_status += 1
+                self.crap_status %= len(lst_crap_progress)
+                yield (None, self.ui.get_info('< {0} crap {0} >'.format(lst_crap_progress[self.crap_status])))
+                #self.ui.print_alert("{}:{} > error communicating...: {}".format(getframeinfo(currentframe()).filename.split('/')[-1].split('\\')[-1], getframeinfo(currentframe()).lineno, str(e)))
                 #self.running = False
                 #self.close()
 
             if response:
 
-                #final_ending = response[-2:] == '\r\n'
-
                 lines = response.split('\r\n')
-                #lines[0] = last + lines[0]
-                #print('LINE', lines[0], '###', last)
-                #if final_ending:
-                #    last = ''
-                #else:
-                #    last = lines[-1]
-                #    lines = lines[:-1]
-                #    print('LAST', last)
-                
+
+                if self.final_ending:
+                    lines[0] = self.final_ending + lines[0]
+                    self.final_ending = None
+                if response[-2:] != '\r\n':
+                    self.final_ending = lines[-1]
+                    lines = lines[:-1]
+
                 for line in lines:
                     #logger.log_line(line)
-                    yield line
+                    yield (line, None)
 
     def get_info(self):
         menu_top, menu_buttom = li.formatted_menu('Connection Info')

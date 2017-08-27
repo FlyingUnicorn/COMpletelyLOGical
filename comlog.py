@@ -9,6 +9,7 @@ import log_color as lc
 import log_interface as li
 import com_handler as ch
 import misc as misc
+import re
 
 from argparse import ArgumentParser
 from enum import Enum
@@ -76,8 +77,11 @@ class Logger(Thread):
         self.lst_freeze = []
 
     def run(self):
-        for line in self.com.get_line():
-            self.log_line(line)
+        for (line, msg) in self.com.get_line():
+            if msg and not self.freeze:
+                print(msg, end='\r')
+            elif line:
+                self.log_line(line)
 
     def log_line(self, line):
 
@@ -100,7 +104,7 @@ class Logger(Thread):
         if hl:
             self.dct_keywords[keyword] = hl
         else:
-            ui.print_alert('Invalid hightlight format')
+            selfui.print_alert('Invalid hightlight format')
 
         self.freeze_log()
 
@@ -115,6 +119,12 @@ class Logger(Thread):
             self.ui.print_cmd('Log frozen, resume with <Ctrl-F>')
 
         self.freeze = not self.freeze
+
+    def clear_log(self):
+        os.system('cls' if os.name == 'nt' else 'clear')
+        self.ui.print_cmd('Log Cleared') 
+        if self.freeze: 
+            self.ui.print_cmd('Log frozen, resume with <Ctrl-F>')
 
     def printer(self, line, override_fmt=None):
         
@@ -138,10 +148,13 @@ class Logger(Thread):
         else:
             formatted_line = line
         
-        self.kpi.handle_kpi(formatted_line)
+        if self.kpi:
+            self.kpi.handle_kpi(formatted_line)
 
-        print('[' + datetime.now().strftime('%H:%M:%S.%f')[:-3] + ']', end=' ')
-        print(formatted_line)
+        if '\x00' not in formatted_line and formatted_line:
+            print('[' + datetime.now().strftime('%H:%M:%S.%f')[:-3] + ']', end=' ')
+            print(formatted_line)
+        
 
 dct_serial_to_const = {
     'FIVEBITS' : serial.FIVEBITS,
@@ -357,7 +370,7 @@ if __name__ == '__main__':
     dct_keywords = {}
     ui = li.UserInterface(color_scheme=lc.color_scheme_default, lst_cmd=lst_user_commands, dct_hl=dct_keywords, newline=newline)
 
-    kpi = misc.Kpi(ui)
+    #kpi = misc.Kpi(ui)
 
     if args.create:
         com = ch.ComPort(ui, '\\.\COM4', 921600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE)
@@ -368,7 +381,7 @@ if __name__ == '__main__':
 
     elif args.load:
         com = ch.ComPort(ui)
-        logger = Logger(dct_keywords, com, ui, newline, kpi)
+        logger = Logger(dct_keywords, com, ui, newline, None)
         config = Config(com, dct_keywords, lc.color_scheme_default)
         print(args.load)
         loaded = config.load(path_cfg=args.load)
@@ -376,7 +389,7 @@ if __name__ == '__main__':
         if not loaded:
             sys.exit()
 
-    lst_user_commands.append(li.UserCommands(b'\x12', 'Ctrl-R', 'Reset log', callback=lambda:(os.system('cls' if os.name == 'nt' else 'clear'), ui.print_cmd('Log Cleared'))))
+    lst_user_commands.append(li.UserCommands(b'\x12', 'Ctrl-R', 'Reset log', callback=logger.clear_log))
     lst_user_commands.append(li.UserCommands(b'\x07', 'Ctrl-G', 'Create a mark in the log', callback=ui.print_marker))
     lst_user_commands.append(li.UserCommands(b'\x06', 'Ctrl-F', 'Freeze the log input', callback=logger.freeze_log))
     #lst_user_commands.append(li.UserCommands(b'\x04', 'Ctrl-D', 'Connection details', callback=lambda:print(color(com.get_info(), color_scheme.information))))

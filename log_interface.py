@@ -41,8 +41,10 @@ class UserInterface:
     def get_alert(self, str):
         return lc.color(str, self.color_scheme.alert.fmt_text)
 
-    def print_info(self, str):
-        print(self.get_info(str), end=self.newline)
+    def print_info(self, str, endl=None):
+        if not endl:
+            endl = self.newline
+        print(self.get_info(str), end=endl)
 
     def print_cmd(self, str):
         print(self.get_cmd(str), end=self.newline)
@@ -50,8 +52,10 @@ class UserInterface:
     def print_frozen(self, str):
         print(self.get_frozen(str), end=self.newline)
 
-    def print_alert(self, str):
-        print(self.get_alert(str), end=self.newline)
+    def print_alert(self, str, endl=None):
+        if not endl:
+            endl = self.newline
+        print(self.get_alert(str), end=endl)
 
     def print_help(self):
         menu_top, menu_buttom = formatted_menu('Help')
